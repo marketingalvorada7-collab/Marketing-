@@ -1,0 +1,13 @@
+rules_version = '2';
+
+// Modo teste: qualquer pessoa com o link do app consegue ler e escrever.
+// Está de acordo com o que foi pedido (dados não são privados por usuário,
+// todo o time vê e edita tudo). Se um dia quiser restringir por login,
+// troque as condições abaixo para checar request.auth.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
