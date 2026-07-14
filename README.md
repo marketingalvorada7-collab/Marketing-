@@ -96,3 +96,83 @@ precisar.
 Sim — crie um segundo projeto no Firebase para testes e troque a configuração
 em `src/firebase.js` quando quiser testar algo antes de ir para o link real
 que o time usa.
+
+---
+
+## App 2 — Boletos (envio e gestão)
+
+Esse app fica em `public/boletos.html` e usa o **mesmo projeto Firebase**
+acima (mesma conta, mesmos dados de conexão) — não precisa criar nada novo no
+passo 1. Depois de publicado (`firebase deploy`), ele fica disponível em
+`https://agenda-f4408.web.app/boletos.html`.
+
+Ele guarda os envios na coleção `boletos` do Firestore (separada da agenda) e
+os arquivos dos boletos no **Firebase Storage**, e tem uma função de servidor
+que lê o boleto com IA (Claude) para preencher valor e vencimento
+automaticamente.
+
+### 1. Ativar o Storage
+
+No console do Firebase, vá em **Build → Storage → Começar** e siga o
+assistente (pode manter as opções padrão). Depois disso, publique as regras:
+
+```bash
+firebase deploy --only storage
+```
+
+(o arquivo `storage.rules`, já incluso, deixa qualquer pessoa com o link
+enviar/baixar arquivos de boleto — mesmo padrão do Firestore — com limite de
+5MB por arquivo.)
+
+### 2. Ativar o plano Blaze e guardar sua chave da Anthropic
+
+A leitura automática do boleto por IA roda numa Cloud Function, que precisa
+do plano **Blaze** (pay-as-you-go — tem cota gratuita generosa, dificilmente
+vai gerar cobrança com o volume de um time pequeno):
+
+1. No console do Firebase, vá em **⚙️ → Uso e faturamento → Alterar plano** e
+   ative o Blaze.
+2. Tenha em mãos uma chave de API da Anthropic (console.anthropic.com →
+   API Keys).
+3. No terminal, dentro da pasta do projeto:
+   ```bash
+   firebase functions:secrets:set ANTHROPIC_API_KEY
+   ```
+   Cole a chave quando for solicitado. Ela fica guardada só no Firebase, nunca
+   no código nem neste repositório.
+
+### 3. Publicar a função e o site
+
+```bash
+cd functions && npm install && cd ..
+npm run build
+firebase deploy --only functions,hosting,firestore:rules,storage
+```
+
+### 4. Permitir o botão "Baixar tudo (ZIP)"
+
+Esse botão baixa os arquivos direto do navegador para montar o ZIP, o que
+exige liberar CORS no bucket do Storage (feito uma vez só). Precisa do
+[Google Cloud SDK](https://cloud.google.com/sdk/docs/install) instalado
+(`gcloud`/`gsutil`):
+
+```bash
+gsutil cors set cors.json gs://agenda-f4408.firebasestorage.app
+```
+
+Sem isso, os envios, downloads individuais e o painel funcionam normalmente —
+só o ZIP em lote fica indisponível.
+
+### Sobre a senha do painel do gestor
+
+A senha (`gestor2026`, definida no topo do `<script>` de `boletos.html`) é
+só uma trava simples de tela, não é autenticação de verdade — qualquer pessoa
+que veja o código-fonte consegue lê-la. Serve para afastar acesso casual, não
+para proteger dados sensíveis. Para trocar, edite a constante
+`GATE_PASSWORD` no arquivo e publique de novo.
+
+### Se a extração por IA não estiver configurada
+
+Sem os passos 1–2, o envio de boletos continua funcionando normalmente — só
+que todo boleto entra marcado como "revisar" no painel, para o gestor
+preencher valor e vencimento manualmente.

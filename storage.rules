@@ -1,0 +1,13 @@
+rules_version = '2';
+
+// Modo teste: qualquer pessoa com o link do app consegue enviar e baixar
+// arquivos de boleto. Igual ao padrão já usado no firestore.rules deste
+// projeto. Limite de 5MB por arquivo, alinhado ao limite do formulário.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /boletos/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.resource.size < 5 * 1024 * 1024;
+    }
+  }
+}

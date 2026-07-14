@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Boletos — Envio e Gestão</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+  :root{
+    --navy:#16233F; --navy-2:#233A63; --paper:#F5F6F8; --card:#FFFFFF;
+    --amber:#E2932E; --amber-dark:#C67A1E; --amber-bg:#FDF3E4;
+    --green:#2E8F63; --red:#C1443C; --red-bg:#FCEEED;
+    --blue-bg:#EAF1FB; --blue:#2A5FA5;
+    --ink:#1B2333; --muted:#6B7688; --line:#E2E5EB;
+    --display:'Space Grotesk',sans-serif; --body:'Inter',sans-serif; --mono:'JetBrains Mono',monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--body);background:var(--paper);color:var(--ink);min-height:100vh;}
+  .wrap{max-width:1080px;margin:0 auto;padding:32px 20px 80px;}
+
+  .app-header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:28px;flex-wrap:wrap;}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{width:40px;height:40px;border-radius:9px;background:linear-gradient(155deg,var(--navy),var(--navy-2));display:flex;align-items:center;justify-content:center;color:var(--amber);font-family:var(--display);font-weight:700;font-size:15px;flex-shrink:0;}
+  .brand-text h1{font-family:var(--display);font-size:19px;margin:0;font-weight:700;letter-spacing:-0.01em;}
+  .brand-text p{margin:2px 0 0;font-size:12.5px;color:var(--muted);}
+
+  .tabs{display:flex;background:#fff;border:1px solid var(--line);border-radius:11px;padding:4px;gap:4px;}
+  .tab-btn{border:none;background:transparent;padding:9px 16px;border-radius:8px;font-family:var(--body);font-weight:600;font-size:13.5px;color:var(--muted);cursor:pointer;transition:background .15s ease,color .15s ease;}
+  .tab-btn.active{background:var(--navy);color:#fff;}
+
+  .view{display:none;} .view.active{display:block;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px;}
+
+  .blocked-card{max-width:480px;margin:40px auto 0;text-align:center;}
+  .blocked-card .icon{font-size:28px;margin-bottom:10px;}
+  .blocked-card h2{font-family:var(--display);font-size:19px;margin:0 0 6px;}
+  .blocked-card p{color:var(--muted);font-size:13.5px;line-height:1.5;}
+
+  .form-card{max-width:560px;margin:0 auto;}
+  .form-card h2{font-family:var(--display);font-size:20px;margin:0 0 4px;}
+  .form-card .sub{color:var(--muted);font-size:13.5px;margin:0 0 24px;}
+
+  .field{margin-bottom:18px;}
+  .field label{display:block;font-size:12.5px;font-weight:600;color:var(--navy-2);margin-bottom:6px;letter-spacing:.01em;}
+  .field input[type=text],.field select{width:100%;padding:11px 13px;border:1.5px solid var(--line);border-radius:9px;font-family:var(--body);font-size:14.5px;color:var(--ink);background:#fff;transition:border-color .15s ease;}
+  .field input:focus,.field select:focus{outline:none;border-color:var(--amber);}
+  .fixed-super{padding:11px 13px;border:1.5px solid var(--line);border-radius:9px;background:#FAFAFB;font-size:14.5px;color:var(--navy-2);font-weight:600;}
+
+  .dropzone{border:2px dashed var(--line);border-radius:12px;padding:26px 16px;text-align:center;cursor:pointer;transition:border-color .15s ease,background .15s ease;background:#FCFCFD;}
+  .dropzone.drag{border-color:var(--amber);background:#FFF8ED;}
+  .dropzone.has-file{border-style:solid;border-color:var(--green);background:#F1FAF5;}
+  .dropzone.processing{border-style:solid;border-color:var(--amber);background:#FFF8ED;}
+  .dropzone .dz-icon{font-size:22px;margin-bottom:6px;}
+  .dropzone .dz-main{font-size:13.5px;font-weight:600;color:var(--navy-2);}
+  .dropzone .dz-sub{font-size:12px;color:var(--muted);margin-top:2px;}
+  .dropzone input{display:none;}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:10px;padding:12px 20px;font-family:var(--body);font-weight:600;font-size:14px;cursor:pointer;transition:transform .1s ease,opacity .15s ease;white-space:nowrap;}
+  .btn:active{transform:scale(0.98);} .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn-primary{background:var(--navy);color:#fff;width:100%;margin-top:6px;}
+  .btn-primary:hover:not(:disabled){background:var(--navy-2);}
+  .btn-amber{background:var(--amber);color:#1B2333;} .btn-amber:hover:not(:disabled){background:var(--amber-dark);color:#fff;}
+  .btn-ghost{background:transparent;color:var(--navy-2);border:1.5px solid var(--line);} .btn-ghost:hover{border-color:var(--navy-2);}
+  .btn-green{background:var(--green);color:#fff;} .btn-green:hover:not(:disabled){background:#256E4D;}
+  .btn-sm{padding:7px 12px;font-size:12px;border-radius:7px;}
+
+  .error-msg{color:var(--red);font-size:12.5px;margin-top:6px;display:none;}
+  .info-banner{display:none;background:var(--blue-bg);color:var(--blue);border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.5;margin-bottom:16px;}
+  .info-banner strong{display:block;font-size:13px;margin-bottom:2px;}
+
+  .receipt{max-width:400px;margin:0 auto;text-align:center;}
+  .receipt-check{width:52px;height:52px;border-radius:50%;background:var(--green);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 16px;}
+  .receipt h2{font-family:var(--display);font-size:19px;margin:0 0 4px;}
+  .receipt .sub{color:var(--muted);font-size:13.5px;margin-bottom:22px;}
+  .stub{border:1.5px solid var(--line);border-radius:12px;overflow:hidden;text-align:left;}
+  .stub-top{padding:18px 20px;background:#FAFAFB;}
+  .stub-row{display:flex;justify-content:space-between;padding:5px 0;font-size:13px;}
+  .stub-row .k{color:var(--muted);} .stub-row .v{font-weight:600;text-align:right;}
+  .stub-tear{position:relative;border-top:2px dashed var(--line);}
+  .stub-bottom{padding:14px 20px;background:var(--navy);color:#fff;display:flex;justify-content:space-between;align-items:center;}
+  .stub-bottom .proto-label{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;opacity:.7;}
+  .stub-bottom .proto{font-family:var(--mono);font-size:15px;font-weight:600;color:var(--amber);}
+  .receipt .btn{margin-top:20px;}
+
+  .gate{max-width:360px;margin:40px auto 0;text-align:center;}
+  .gate .lock{font-size:26px;margin-bottom:10px;}
+  .gate h2{font-family:var(--display);font-size:18px;margin:0 0 4px;}
+  .gate .sub{color:var(--muted);font-size:13px;margin-bottom:18px;}
+
+  .stats-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px;}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
+  .stat.warn{border-color:var(--amber);background:var(--amber-bg);}
+  .stat .num{font-family:var(--display);font-size:20px;font-weight:700;color:var(--navy);}
+  .stat.warn .num{color:var(--amber-dark);}
+  .stat .lbl{font-size:11.5px;color:var(--muted);margin-top:2px;}
+
+  .subtabs{display:flex;gap:8px;margin-bottom:16px;border-bottom:2px solid var(--line);flex-wrap:wrap;}
+  .subtab-btn{border:none;background:transparent;padding:10px 4px;margin-right:18px;font-family:var(--body);font-weight:600;font-size:14px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;}
+  .subtab-btn.active{color:var(--navy);border-bottom-color:var(--amber);}
+  .subtab-btn .count{display:inline-block;background:var(--paper);color:var(--muted);border-radius:99px;padding:1px 8px;font-size:11.5px;margin-left:6px;}
+  .subtab-btn.active .count{background:var(--amber);color:#fff;}
+
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:18px;}
+  .toolbar select,.toolbar input[type=text]{padding:9px 12px;border:1.5px solid var(--line);border-radius:8px;font-size:13px;font-family:var(--body);background:#fff;}
+  .toolbar .spacer{flex:1;}
+
+  .regional-group{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:16px;}
+  .regional-group-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:#FAFAFB;border-bottom:1px solid var(--line);flex-wrap:wrap;gap:10px;}
+  .regional-group-title{display:flex;align-items:center;gap:10px;}
+  .regional-group-title h3{font-family:var(--display);font-size:15.5px;margin:0;}
+  .regional-group-count{font-size:12px;color:var(--muted);}
+  .regional-group-total{font-family:var(--mono);font-weight:600;color:var(--navy);font-size:14.5px;}
+  .regional-group-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+
+  table{width:100%;border-collapse:collapse;font-size:13.5px;}
+  thead th{text-align:left;padding:10px 16px;background:#FCFCFD;color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;border-bottom:1px solid var(--line);}
+  tbody td{padding:11px 16px;border-bottom:1px solid var(--line);vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;} tbody tr:hover{background:#FBFBFC;}
+  .valor-cell{font-family:var(--mono);font-weight:600;}
+  .divergente-badge{display:inline-block;margin-left:6px;padding:2px 7px;border-radius:99px;background:var(--red-bg);color:var(--red);font-size:10.5px;font-weight:700;vertical-align:middle;}
+  .revisar-badge{display:inline-block;padding:2px 7px;border-radius:99px;background:var(--amber-bg);color:var(--amber-dark);font-size:10.5px;font-weight:700;vertical-align:middle;}
+  .dl-link{color:var(--amber-dark);font-weight:600;text-decoration:none;font-size:13px;}
+  .dl-link:hover{text-decoration:underline;}
+  .mono-date{font-family:var(--mono);font-size:12.5px;color:var(--muted);}
+  .row-check{width:16px;height:16px;cursor:pointer;}
+
+  .empty-state{padding:40px 20px;text-align:center;color:var(--muted);font-size:13.5px;}
+  .empty-state .icon{font-size:24px;margin-bottom:6px;}
+  .loading{padding:40px;text-align:center;color:var(--muted);font-size:13.5px;}
+
+  @media (max-width:640px){ .regional-group{overflow-x:auto;} table{min-width:640px;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="app-header">
+    <div class="brand">
+      <div class="brand-mark">BL</div>
+      <div class="brand-text"><h1>Boletos</h1><p>Envio e gestão por regional</p></div>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" data-view="enviar">Enviar</button>
+      <button class="tab-btn" data-view="painel">Painel do gestor</button>
+    </div>
+  </div>
+
+  <div class="view active" id="view-enviar">
+
+    <div class="card blocked-card" id="blocked-card" style="display:none;">
+      <div class="icon">⏳</div>
+      <h2>Fora do período de envio</h2>
+      <p>Os boletos podem ser enviados apenas entre os dias <strong id="blocked-range"></strong> de cada mês. Volte no próximo período de envio.</p>
+    </div>
+
+    <div class="card form-card" id="form-card">
+      <h2>Enviar boleto</h2>
+      <p class="sub">Preencha seus dados e anexe o arquivo do boleto.</p>
+
+      <div class="info-banner" id="duplicate-banner"></div>
+
+      <form id="boleto-form">
+        <div class="field">
+          <label for="f-nome">Nome completo</label>
+          <input type="text" id="f-nome" placeholder="Seu nome completo" autocomplete="name">
+        </div>
+
+        <div class="field">
+          <label for="f-regional">Regional</label>
+          <select id="f-regional"><option value="">Selecione a regional</option></select>
+        </div>
+
+        <div class="field" id="f-super-wrap" style="display:none;">
+          <label id="f-super-label" for="f-supervisor">Supervisor</label>
+          <select id="f-supervisor"></select>
+        </div>
+
+        <div class="field">
+          <label>Arquivo do boleto</label>
+          <div class="dropzone" id="dropzone">
+            <div class="dz-icon">📎</div>
+            <div class="dz-main" id="dz-main">Clique para anexar ou arraste o arquivo aqui</div>
+            <div class="dz-sub" id="dz-sub">PDF, JPG ou PNG · até 5MB</div>
+            <input type="file" id="f-arquivo" accept="application/pdf,image/*">
+          </div>
+        </div>
+
+        <div class="error-msg" id="form-error"></div>
+        <button type="submit" class="btn btn-primary" id="submit-btn">Enviar boleto</button>
+      </form>
+    </div>
+
+    <div class="card receipt" id="receipt-card" style="display:none;">
+      <div class="receipt-check">✓</div>
+      <h2>Boleto enviado</h2>
+      <p class="sub">Guarde o protocolo abaixo como confirmação.</p>
+      <div class="stub">
+        <div class="stub-top">
+          <div class="stub-row"><span class="k">Nome</span><span class="v" id="r-nome"></span></div>
+          <div class="stub-row"><span class="k">Regional</span><span class="v" id="r-regional"></span></div>
+          <div class="stub-row"><span class="k">Supervisor</span><span class="v" id="r-supervisor"></span></div>
+          <div class="stub-row"><span class="k">Enviado em</span><span class="v" id="r-data"></span></div>
+        </div>
+        <div class="stub-tear"></div>
+        <div class="stub-bottom">
+          <span class="proto-label">Protocolo</span>
+          <span class="proto" id="r-protocolo"></span>
+        </div>
+      </div>
+      <button class="btn btn-ghost" id="btn-novo-envio">Enviar outro boleto</button>
+    </div>
+  </div>
+
+  <div class="view" id="view-painel">
+
+    <div class="card gate" id="gate-card">
+      <div class="lock">🔒</div>
+      <h2>Área do gestor</h2>
+      <p class="sub">Digite a senha para acessar o painel.</p>
+      <div class="field">
+        <input type="text" id="gate-pass" placeholder="Senha" style="text-align:center;padding:11px 13px;border:1.5px solid var(--line);border-radius:9px;width:100%;font-size:14.5px;">
+      </div>
+      <div class="error-msg" id="gate-error">Senha incorreta.</div>
+      <button class="btn btn-primary" id="gate-btn">Entrar</button>
+    </div>
+
+    <div id="dashboard" style="display:none;">
+      <div class="stats-row" id="stats-row"></div>
+
+      <div class="subtabs" id="subtabs">
+        <button class="subtab-btn active" data-status="pendente">Pendentes <span class="count" id="count-pendente">0</span></button>
+        <button class="subtab-btn" data-status="enviado">Enviados ao financeiro <span class="count" id="count-enviado">0</span></button>
+        <button class="subtab-btn" data-status="pago">Pagos <span class="count" id="count-pago">0</span></button>
+      </div>
+
+      <div class="toolbar">
+        <select id="filter-regional"><option value="">Todas regionais</option></select>
+        <select id="filter-supervisor"><option value="">Todos supervisores</option></select>
+        <input type="text" id="filter-nome" placeholder="Buscar por nome...">
+        <div class="spacer"></div>
+        <button class="btn btn-ghost btn-sm" id="btn-csv">Exportar CSV</button>
+        <button class="btn btn-amber btn-sm" id="btn-zip">Baixar tudo (ZIP)</button>
+      </div>
+
+      <div id="groups-region"></div>
+    </div>
+  </div>
+
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import {
+  getFirestore, collection, doc, setDoc, getDocs, query, where
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
+import {
+  getStorage, ref, uploadBytes, getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
+import {
+  getFunctions, httpsCallable
+} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-functions.js";
+
+// Mesmo projeto Firebase usado pela Agenda Semanal (src/firebase.js) — os dados
+// dos boletos ficam na coleção "boletos", separada das demais.
+const firebaseConfig = {
+  apiKey: "AIzaSyAwCWvg_Z4_Q-QF8IkXN6VBC1jxKVwfZ1c",
+  authDomain: "agenda-f4408.firebaseapp.com",
+  projectId: "agenda-f4408",
+  storageBucket: "agenda-f4408.firebasestorage.app",
+  messagingSenderId: "1031180172181",
+  appId: "1:1031180172181:web:fdfa284b738dbb0101549c",
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const storage = getStorage(app);
+const functions = getFunctions(app);
+const extractBoletoFn = httpsCallable(functions, "extractBoleto");
+
+const GATE_PASSWORD = "gestor2026";
+
+const ENABLE_SUBMISSION_WINDOW = false;
+const WINDOW_START_DAY = 1;
+const WINDOW_END_DAY = 10;
+
+const STANDARD_VALUES = [400, 200];
+
+const REGIONAIS = {
+  "São Luís": { fixed: null, supervisors: ["Cutrim","Lucival","Douglas","Cristino","Victor"] },
+  "Rosário": { fixed: "Thiago", supervisors: [] },
+  "Itapecuru": { fixed: "Alessandro", supervisors: [] },
+  "Pinheiro": { fixed: "Cleice", supervisors: [] }
+};
+
+const STATUS_TRANSITIONS = {
+  pendente: [ { label:"Marcar selecionados como enviados", to:"enviado", style:"btn-green" } ],
+  enviado: [ { label:"Marcar como pago", to:"pago", style:"btn-green" }, { label:"Devolver p/ pendente", to:"pendente", style:"btn-ghost" } ],
+  pago: [ { label:"Devolver p/ enviado", to:"enviado", style:"btn-ghost" } ]
+};
+
+let selectedFile = null;
+let fileProcessing = false;
+let cachedMeta = null;
+let activeStatus = 'pendente';
+let selectedIds = new Set();
+
+function init(){
+  const regionalSel = document.getElementById('f-regional');
+  Object.keys(REGIONAIS).forEach(r=>{
+    const opt = document.createElement('option'); opt.value = r; opt.textContent = r;
+    regionalSel.appendChild(opt);
+  });
+  const filterRegional = document.getElementById('filter-regional');
+  Object.keys(REGIONAIS).forEach(r=>{
+    const opt = document.createElement('option'); opt.value = r; opt.textContent = r;
+    filterRegional.appendChild(opt);
+  });
+
+  regionalSel.addEventListener('change', onRegionalChange);
+  document.getElementById('boleto-form').addEventListener('submit', onSubmit);
+  document.getElementById('btn-novo-envio').addEventListener('click', resetForm);
+  document.getElementById('f-nome').addEventListener('blur', onNomeBlur);
+
+  checkSubmissionWindow();
+  setupDropzone();
+  setupTabs();
+
+  document.getElementById('gate-btn').addEventListener('click', tryGateLogin);
+  document.getElementById('gate-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') tryGateLogin(); });
+
+  document.querySelectorAll('.subtab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.subtab-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      activeStatus = btn.dataset.status;
+      selectedIds.clear();
+      renderGroups();
+    });
+  });
+
+  document.getElementById('filter-regional').addEventListener('change', onFilterRegionalChange);
+  document.getElementById('filter-supervisor').addEventListener('change', renderGroups);
+  document.getElementById('filter-nome').addEventListener('input', renderGroups);
+  document.getElementById('btn-csv').addEventListener('click', exportCsv);
+  document.getElementById('btn-zip').addEventListener('click', exportZip);
+}
+
+function checkSubmissionWindow(){
+  if(!ENABLE_SUBMISSION_WINDOW) return;
+  const day = new Date().getDate();
+  const open = day >= WINDOW_START_DAY && day <= WINDOW_END_DAY;
+  document.getElementById('blocked-range').textContent = `${WINDOW_START_DAY} a ${WINDOW_END_DAY}`;
+  if(!open){
+    document.getElementById('blocked-card').style.display = 'block';
+    document.getElementById('form-card').style.display = 'none';
+  }
+}
+
+function setupTabs(){
+  document.querySelectorAll('.tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+      document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    });
+  });
+}
+
+function onRegionalChange(){
+  const val = document.getElementById('f-regional').value;
+  const wrap = document.getElementById('f-super-wrap');
+  if(!val){ wrap.style.display='none'; return; }
+  const conf = REGIONAIS[val];
+  if(conf.fixed){
+    wrap.innerHTML = `<label>Supervisor</label><div class="fixed-super">${conf.fixed}</div>`;
+    wrap.style.display='block';
+  } else {
+    wrap.innerHTML = `<label id="f-super-label" for="f-supervisor">Supervisor</label><select id="f-supervisor"><option value="">Selecione o supervisor</option></select>`;
+    wrap.style.display='block';
+    const sel = document.getElementById('f-supervisor');
+    conf.supervisors.forEach(s=>{
+      const opt = document.createElement('option'); opt.value = s; opt.textContent = s;
+      sel.appendChild(opt);
+    });
+  }
+}
+
+function setupDropzone(){
+  const dz = document.getElementById('dropzone');
+  const input = document.getElementById('f-arquivo');
+  dz.addEventListener('click', ()=>input.click());
+  dz.addEventListener('dragover', e=>{ e.preventDefault(); dz.classList.add('drag'); });
+  dz.addEventListener('dragleave', ()=> dz.classList.remove('drag'));
+  dz.addEventListener('drop', e=>{
+    e.preventDefault(); dz.classList.remove('drag');
+    if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+  });
+  input.addEventListener('change', e=>{
+    if(e.target.files.length) handleFile(e.target.files[0]);
+  });
+}
+
+function handleFile(file){
+  if(file.size > 5*1024*1024){
+    showError('form-error','Arquivo maior que 5MB. Escolha um arquivo menor.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = async ()=>{
+    selectedFile = { file, name: file.name, type: file.type || 'application/octet-stream', dataUrl: reader.result, valor:null, vencimento:null, extracaoOk:false };
+    const dz = document.getElementById('dropzone');
+    dz.classList.add('processing');
+    dz.classList.remove('has-file');
+    document.getElementById('dz-main').textContent = '📄 ' + file.name;
+    document.getElementById('dz-sub').textContent = 'Analisando o boleto...';
+    hideError('form-error');
+
+    fileProcessing = true;
+    const extraction = await extractBoletoData(selectedFile.dataUrl, selectedFile.type);
+    selectedFile.valor = extraction.valor;
+    selectedFile.vencimento = extraction.vencimento;
+    selectedFile.extracaoOk = extraction.ok;
+    fileProcessing = false;
+
+    dz.classList.remove('processing');
+    dz.classList.add('has-file');
+    document.getElementById('dz-sub').textContent = 'Clique para trocar o arquivo';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function extractBoletoData(dataUrl, mimeType){
+  try{
+    const base64 = dataUrl.split(',')[1];
+    const result = await extractBoletoFn({ base64, mimeType });
+    const data = result.data || {};
+    const valor = (typeof data.valor === 'number') ? data.valor : null;
+    const vencimento = (typeof data.vencimento === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.vencimento)) ? data.vencimento : null;
+    return { valor, vencimento, ok: !!data.ok };
+  } catch(err){
+    console.error(err);
+    return { valor:null, vencimento:null, ok:false };
+  }
+}
+
+function showError(id, msg){
+  const el = document.getElementById(id); el.textContent = msg; el.style.display = 'block';
+}
+function hideError(id){ document.getElementById(id).style.display = 'none'; }
+
+function normalizeName(s){ return (s||'').trim().toLowerCase().replace(/\s+/g,' '); }
+
+async function findActiveRecord(nome){
+  if(!nome) return null;
+  try{
+    const q = query(collection(db,'boletos'), where('status','in',['pendente','enviado']));
+    const snap = await getDocs(q);
+    let match = null;
+    snap.forEach(d=>{
+      const data = d.data();
+      if(normalizeName(data.nome) === normalizeName(nome)) match = { id: d.id, ...data };
+    });
+    return match;
+  } catch(err){
+    console.error(err);
+    return null;
+  }
+}
+
+async function onNomeBlur(){
+  const nome = document.getElementById('f-nome').value.trim();
+  const banner = document.getElementById('duplicate-banner');
+  const submitBtn = document.getElementById('submit-btn');
+  if(!nome){ banner.style.display='none'; submitBtn.disabled=false; return; }
+  const match = await findActiveRecord(nome);
+  if(match){
+    showDuplicateBanner(match);
+    submitBtn.disabled = true;
+  } else {
+    banner.style.display = 'none';
+    submitBtn.disabled = false;
+  }
+}
+
+function showDuplicateBanner(record){
+  const banner = document.getElementById('duplicate-banner');
+  const msg = record.status === 'pendente'
+    ? 'Seu boleto já foi enviado e está aguardando verificação. Assim que for processado, você poderá enviar outro.'
+    : 'Seu boleto já foi enviado ao financeiro e está em processamento.';
+  banner.innerHTML = `<strong>Você já enviou um boleto</strong>${msg} Protocolo: ${record.protocolo}`;
+  banner.style.display = 'block';
+}
+
+async function onSubmit(e){
+  e.preventDefault();
+  hideError('form-error');
+
+  const nome = document.getElementById('f-nome').value.trim();
+  const regional = document.getElementById('f-regional').value;
+  let supervisor = '';
+
+  if(!nome){ showError('form-error','Informe seu nome completo.'); return; }
+  if(!regional){ showError('form-error','Selecione a regional.'); return; }
+
+  const conf = REGIONAIS[regional];
+  if(conf.fixed){
+    supervisor = conf.fixed;
+  } else {
+    const sel = document.getElementById('f-supervisor');
+    supervisor = sel ? sel.value : '';
+    if(!supervisor){ showError('form-error','Selecione o supervisor.'); return; }
+  }
+
+  if(!selectedFile){ showError('form-error','Anexe o arquivo do boleto.'); return; }
+  if(fileProcessing){ showError('form-error','Aguarde a análise do arquivo terminar.'); return; }
+
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = 'Enviando...';
+
+  try{
+    const duplicate = await findActiveRecord(nome);
+    if(duplicate){
+      showDuplicateBanner(duplicate);
+      btn.textContent = 'Enviar boleto';
+      return;
+    }
+
+    const now = new Date();
+    const protocolo = buildProtocolo(now);
+    const docRef = doc(collection(db,'boletos'));
+
+    const fileRef = ref(storage, `boletos/${docRef.id}/${selectedFile.name}`);
+    await uploadBytes(fileRef, selectedFile.file, { contentType: selectedFile.type });
+    const downloadUrl = await getDownloadURL(fileRef);
+
+    const record = {
+      nome, regional, supervisor,
+      valor: selectedFile.valor,
+      vencimento: selectedFile.vencimento,
+      extracaoOk: selectedFile.extracaoOk,
+      dataHora: now.toISOString(),
+      fileName: selectedFile.name,
+      fileType: selectedFile.type,
+      downloadUrl,
+      protocolo,
+      status: 'pendente'
+    };
+
+    await setDoc(docRef, record);
+
+    showReceipt({ ...record, id: docRef.id });
+    e.target.reset();
+    selectedFile = null;
+    document.getElementById('duplicate-banner').style.display = 'none';
+  } catch(err){
+    console.error(err);
+    showError('form-error','Não foi possível enviar agora. Tente novamente.');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Enviar boleto';
+  }
+}
+
+function buildProtocolo(date){
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,'0');
+  const d = String(date.getDate()).padStart(2,'0');
+  const rand = Math.floor(1000 + Math.random()*9000);
+  return `${y}${m}${d}-${rand}`;
+}
+
+function showReceipt(record){
+  document.getElementById('form-card').style.display = 'none';
+  const rc = document.getElementById('receipt-card');
+  rc.style.display = 'block';
+  document.getElementById('r-nome').textContent = record.nome;
+  document.getElementById('r-regional').textContent = record.regional;
+  document.getElementById('r-supervisor').textContent = record.supervisor;
+  document.getElementById('r-data').textContent = formatDateTime(record.dataHora);
+  document.getElementById('r-protocolo').textContent = record.protocolo;
+}
+
+function resetForm(){
+  document.getElementById('receipt-card').style.display = 'none';
+  document.getElementById('form-card').style.display = 'block';
+  document.getElementById('f-super-wrap').style.display = 'none';
+  document.getElementById('duplicate-banner').style.display = 'none';
+  document.getElementById('submit-btn').disabled = false;
+  const dz = document.getElementById('dropzone');
+  dz.classList.remove('has-file','processing');
+  document.getElementById('dz-main').textContent = 'Clique para anexar ou arraste o arquivo aqui';
+  document.getElementById('dz-sub').textContent = 'PDF, JPG ou PNG · até 5MB';
+}
+
+function formatDateTime(iso){
+  const d = new Date(iso);
+  return d.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+function formatDateOnly(isoDate){
+  if(!isoDate) return null;
+  const [y,m,d] = isoDate.split('-');
+  return `${d}/${m}/${y}`;
+}
+function formatCurrency(val){
+  if(val === null || val === undefined) return null;
+  return val.toLocaleString('pt-BR', { style:'currency', currency:'BRL' });
+}
+function isDivergente(valor){
+  if(valor === null || valor === undefined) return false;
+  return !STANDARD_VALUES.some(v => Math.abs(v - valor) < 0.005);
+}
+
+function tryGateLogin(){
+  const val = document.getElementById('gate-pass').value;
+  if(val === GATE_PASSWORD){
+    document.getElementById('gate-card').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    loadDashboard();
+  } else {
+    document.getElementById('gate-error').style.display = 'block';
+  }
+}
+
+async function loadDashboard(){
+  const region = document.getElementById('groups-region');
+  region.innerHTML = '<div class="loading">Carregando envios...</div>';
+  try{
+    const snap = await getDocs(collection(db,'boletos'));
+    cachedMeta = snap.docs.map(d=>({ id: d.id, ...d.data() }));
+    cachedMeta.sort((a,b)=> new Date(b.dataHora) - new Date(a.dataHora));
+  } catch(err){
+    console.error(err);
+    cachedMeta = [];
+  }
+  cachedMeta.forEach(m=>{ if(!m.status) m.status = 'pendente'; });
+  renderStats();
+  renderGroups();
+}
+
+function renderStats(){
+  const pendentes = cachedMeta.filter(m=>m.status==='pendente');
+  const enviados = cachedMeta.filter(m=>m.status==='enviado');
+  const pagos = cachedMeta.filter(m=>m.status==='pago');
+  const sum = arr => arr.reduce((acc,m)=> acc + (m.valor||0), 0);
+  const revisar = pendentes.filter(m=> m.valor===null || m.vencimento===null).length;
+
+  document.getElementById('count-pendente').textContent = pendentes.length;
+  document.getElementById('count-enviado').textContent = enviados.length;
+  document.getElementById('count-pago').textContent = pagos.length;
+
+  const statsRow = document.getElementById('stats-row');
+  statsRow.innerHTML = `
+    <div class="stat"><div class="num">${pendentes.length}</div><div class="lbl">Pendentes</div></div>
+    <div class="stat"><div class="num">${formatCurrency(sum(pendentes)) || 'R$ 0,00'}</div><div class="lbl">Total pendente</div></div>
+    <div class="stat"><div class="num">${enviados.length}</div><div class="lbl">No financeiro</div></div>
+    <div class="stat"><div class="num">${formatCurrency(sum(enviados)) || 'R$ 0,00'}</div><div class="lbl">Total no financeiro</div></div>
+    <div class="stat"><div class="num">${pagos.length}</div><div class="lbl">Pagos</div></div>
+    <div class="stat ${revisar>0?'warn':''}"><div class="num">${revisar}</div><div class="lbl">Precisam revisão</div></div>
+  `;
+}
+
+function onFilterRegionalChange(){
+  const regional = document.getElementById('filter-regional').value;
+  const supSel = document.getElementById('filter-supervisor');
+  supSel.innerHTML = '<option value="">Todos supervisores</option>';
+  let supervisors = [];
+  if(regional && REGIONAIS[regional]){
+    const conf = REGIONAIS[regional];
+    supervisors = conf.fixed ? [conf.fixed] : conf.supervisors;
+  } else {
+    const set = new Set();
+    Object.values(REGIONAIS).forEach(c=>{ if(c.fixed) set.add(c.fixed); else c.supervisors.forEach(s=>set.add(s)); });
+    supervisors = Array.from(set);
+  }
+  supervisors.forEach(s=>{
+    const opt = document.createElement('option'); opt.value = s; opt.textContent = s;
+    supSel.appendChild(opt);
+  });
+  renderGroups();
+}
+
+function getFilteredMeta(){
+  const regionalFilter = document.getElementById('filter-regional').value;
+  const supervisorFilter = document.getElementById('filter-supervisor').value;
+  const nomeQuery = document.getElementById('filter-nome').value.trim().toLowerCase();
+  return (cachedMeta||[]).filter(m=>{
+    if(m.status !== activeStatus) return false;
+    if(regionalFilter && m.regional !== regionalFilter) return false;
+    if(supervisorFilter && m.supervisor !== supervisorFilter) return false;
+    if(nomeQuery && !m.nome.toLowerCase().includes(nomeQuery)) return false;
+    return true;
+  });
+}
+
+function renderGroups(){
+  const region = document.getElementById('groups-region');
+  const rows = getFilteredMeta();
+
+  if(!rows.length){
+    const msgs = { pendente:'Nenhum boleto pendente por aqui.', enviado:'Nenhum boleto no financeiro ainda.', pago:'Nenhum boleto pago ainda.' };
+    region.innerHTML = `<div class="empty-state"><div class="icon">📭</div>${msgs[activeStatus]}</div>`;
+    return;
+  }
+
+  const byRegional = {};
+  Object.keys(REGIONAIS).forEach(r=> byRegional[r] = []);
+  rows.forEach(m=>{ if(byRegional[m.regional]) byRegional[m.regional].push(m); });
+
+  const transitions = STATUS_TRANSITIONS[activeStatus] || [];
+
+  let html = '';
+  Object.keys(byRegional).forEach(regional=>{
+    const items = byRegional[regional];
+    if(!items.length) return;
+    const total = items.reduce((acc,m)=> acc + (m.valor||0), 0);
+
+    const actionButtons = transitions.map(t =>
+      `<button class="btn btn-sm ${t.style} group-action-btn" data-regional="${escapeHtml(regional)}" data-to="${t.to}">${t.label}</button>`
+    ).join('');
+
+    html += `<div class="regional-group" data-regional="${escapeHtml(regional)}">
+      <div class="regional-group-header">
+        <div class="regional-group-title">
+          <input type="checkbox" class="row-check group-select-all" data-regional="${escapeHtml(regional)}">
+          <h3>${escapeHtml(regional)}</h3>
+          <span class="regional-group-count">${items.length} boleto${items.length>1?'s':''}</span>
+        </div>
+        <div class="regional-group-actions">
+          <span class="regional-group-total">${formatCurrency(total)}</span>
+          ${actionButtons}
+        </div>
+      </div>
+      <table><thead><tr>
+        <th></th><th>Nome</th><th>Supervisor</th><th>Vencimento</th><th>Valor</th><th>Arquivo</th>
+      </tr></thead><tbody>`;
+
+    items.forEach(m=>{
+      const valorFmt = formatCurrency(m.valor);
+      const vencFmt = formatDateOnly(m.vencimento);
+      const divergente = isDivergente(m.valor);
+      html += `<tr>
+        <td><input type="checkbox" class="row-check row-select" data-id="${m.id}" data-regional="${escapeHtml(regional)}"></td>
+        <td>${escapeHtml(m.nome)}</td>
+        <td>${escapeHtml(m.supervisor)}</td>
+        <td class="mono-date">${vencFmt || '<span class="revisar-badge">revisar</span>'}</td>
+        <td class="valor-cell">${valorFmt || '<span class="revisar-badge">revisar</span>'}${divergente ? '<span class="divergente-badge">divergente</span>' : ''}</td>
+        <td><a href="${m.downloadUrl}" class="dl-link" target="_blank" rel="noopener">Baixar</a></td>
+      </tr>`;
+    });
+
+    html += '</tbody></table></div>';
+  });
+
+  region.innerHTML = html;
+
+  region.querySelectorAll('.row-select').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      if(cb.checked) selectedIds.add(cb.dataset.id); else selectedIds.delete(cb.dataset.id);
+    });
+  });
+
+  region.querySelectorAll('.group-select-all').forEach(cb=>{
+    cb.addEventListener('change', ()=>{
+      const regional = cb.dataset.regional;
+      const rowChecks = region.querySelectorAll(`.row-select[data-regional="${cssEscape(regional)}"]`);
+      rowChecks.forEach(rc=>{
+        rc.checked = cb.checked;
+        if(cb.checked) selectedIds.add(rc.dataset.id); else selectedIds.delete(rc.dataset.id);
+      });
+    });
+  });
+
+  region.querySelectorAll('.group-action-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const regional = btn.dataset.regional;
+      const to = btn.dataset.to;
+      const idsInGroup = Array.from(region.querySelectorAll(`.row-select[data-regional="${cssEscape(regional)}"]`)).map(el=>el.dataset.id);
+      const idsToMove = idsInGroup.filter(id=>selectedIds.has(id));
+      if(!idsToMove.length){ alert('Selecione ao menos um boleto nesta regional.'); return; }
+      await moveStatus(idsToMove, to);
+    });
+  });
+}
+
+function cssEscape(str){ return String(str).replace(/["\\]/g, '\\$&'); }
+
+async function moveStatus(ids, newStatus){
+  try{
+    await Promise.all(ids.map(id => setDoc(doc(db,'boletos',id), { status: newStatus }, { merge: true })));
+  } catch(err){
+    console.error(err);
+    alert('Não foi possível salvar a alteração agora. Tente novamente.');
+    return;
+  }
+  cachedMeta.forEach(m=>{ if(ids.includes(m.id)) m.status = newStatus; });
+  selectedIds.clear();
+  renderStats();
+  renderGroups();
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div'); div.textContent = str; return div.innerHTML;
+}
+
+function exportCsv(){
+  const rows = getFilteredMeta();
+  if(!rows.length) return;
+  const header = ['Nome','Regional','Supervisor','Valor','Divergente','Vencimento','Enviado em','Arquivo','Protocolo','Status'];
+  const lines = [header.join(';')];
+  rows.forEach(m=>{
+    lines.push([
+      csvSafe(m.nome), csvSafe(m.regional), csvSafe(m.supervisor),
+      csvSafe(formatCurrency(m.valor) || 'REVISAR'), csvSafe(isDivergente(m.valor) ? 'SIM' : ''),
+      csvSafe(formatDateOnly(m.vencimento) || 'REVISAR'), csvSafe(formatDateTime(m.dataHora)),
+      csvSafe(m.fileName), csvSafe(m.protocolo||''), csvSafe(m.status)
+    ].join(';'));
+  });
+  const csvContent = '﻿' + lines.join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url;
+  a.download = 'boletos_' + activeStatus + '_' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function csvSafe(val){
+  const s = String(val ?? '');
+  if(s.includes(';') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g,'""') + '"';
+  return s;
+}
+
+async function exportZip(){
+  const rows = getFilteredMeta();
+  if(!rows.length) return;
+  const btn = document.getElementById('btn-zip');
+  btn.disabled = true; const originalText = btn.textContent; btn.textContent = 'Preparando ZIP...';
+  try{
+    const zip = new JSZip();
+    const header = ['Nome','Regional','Supervisor','Valor','Divergente','Vencimento','Enviado em','Arquivo','Protocolo'];
+    const lines = [header.join(';')];
+    rows.forEach(m=>{
+      lines.push([
+        csvSafe(m.nome), csvSafe(m.regional), csvSafe(m.supervisor),
+        csvSafe(formatCurrency(m.valor) || 'REVISAR'), csvSafe(isDivergente(m.valor) ? 'SIM' : ''),
+        csvSafe(formatDateOnly(m.vencimento) || 'REVISAR'), csvSafe(formatDateTime(m.dataHora)),
+        csvSafe(m.fileName), csvSafe(m.protocolo||'')
+      ].join(';'));
+    });
+    zip.file('planilha_boletos.csv', '﻿' + lines.join('\n'));
+
+    for(const m of rows){
+      if(!m.downloadUrl) continue;
+      const resp = await fetch(m.downloadUrl);
+      if(!resp.ok) continue;
+      const arrayBuffer = await resp.arrayBuffer();
+      const safeName = m.nome.replace(/[^\w\séÉáÁãÃõÕêÊíÍóÓúÚçÇ-]/g,'').trim();
+      const ext = (m.fileName.split('.').pop() || 'bin');
+      zip.file(`${m.regional}/${safeName} - ${m.protocolo}.${ext}`, arrayBuffer);
+    }
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url;
+    a.download = 'boletos_' + activeStatus + '_' + new Date().toISOString().slice(0,10) + '.zip';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(err){
+    console.error(err);
+    alert('Não foi possível gerar o ZIP agora. Tente novamente. Se o erro persistir, o bucket de Storage pode precisar de configuração de CORS (veja o README).');
+  } finally {
+    btn.disabled = false; btn.textContent = originalText;
+  }
+}
+
+init();
+</script>
+</body>
+</html>
