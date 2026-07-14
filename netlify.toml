@@ -2,6 +2,12 @@
   command = "npm run build"
   publish = "dist"
 
+[build.environment]
+  # README.md é documentação (nunca roda em produção) e só menciona o NOME
+  # da variável ANTHROPIC_API_KEY, nunca um valor — excluído do secrets
+  # scanning para evitar falso positivo nessa linha.
+  SECRETS_SCAN_OMIT_PATHS = "README.md"
+
 [functions]
   directory = "netlify/functions"
 

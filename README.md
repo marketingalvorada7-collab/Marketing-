@@ -139,8 +139,11 @@ A extração automática por IA roda na Netlify Function, que lê a chave de uma
 variável de ambiente (nunca fica no código nem neste repositório):
 
 1. No painel do Netlify: **Site configuration → Environment variables → Add a variable**.
-2. Nome: `ANTHROPIC_API_KEY`. Valor: sua chave (console.anthropic.com → API Keys).
-3. Salve. Não precisa refazer o build ainda — o próximo deploy já pega a variável.
+2. No campo **Key**, digite exatamente `ANTHROPIC_API_KEY`.
+3. No campo **Value**, cole a chave secreta gerada em console.anthropic.com →
+   API Keys (começa com `sk-ant-`) — **não** cole o nome `ANTHROPIC_API_KEY`
+   nesse campo, só o valor da chave em si.
+4. Salve e refaça o deploy (Deploys → Trigger deploy).
 
 ### 3. Publicar
 
