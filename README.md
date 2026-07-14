@@ -101,67 +101,61 @@ que o time usa.
 
 ## App 2 — Boletos (envio e gestão)
 
-Esse app fica em `public/boletos.html` e usa o **mesmo projeto Firebase**
-acima (mesma conta, mesmos dados de conexão) — não precisa criar nada novo no
-passo 1. Depois de publicado (`firebase deploy`), ele fica disponível em
-`https://agenda-f4408.web.app/boletos.html`.
+Esse app fica em `public/boletos.html`, é hospedado no **Netlify** (junto com
+o resto do site) e usa três serviços, todos com plano gratuito **sem cartão
+de crédito**:
 
-Ele guarda os envios na coleção `boletos` do Firestore (separada da agenda) e
-os arquivos dos boletos no **Firebase Storage**, e tem uma função de servidor
-que lê o boleto com IA (Claude) para preencher valor e vencimento
-automaticamente.
+- **Firestore** (mesmo projeto Firebase da Agenda Semanal, plano Spark) —
+  guarda os dados de cada boleto (nome, regional, valor, vencimento, status)
+  na coleção `boletos`, separada da agenda.
+- **Cloudinary** — guarda o arquivo do boleto em si (PDF/imagem). O upload
+  vai direto do navegador para o Cloudinary, sem passar pelo nosso servidor.
+- **Netlify Functions** — uma função serverless (`netlify/functions/extract-boleto.js`)
+  que chama a IA (Claude) no servidor para ler o boleto e preencher valor e
+  vencimento automaticamente.
 
-### 1. Ativar o Storage
+Depois de publicado, o app fica em `https://SEU-SITE.netlify.app/boletos.html`.
 
-No console do Firebase, vá em **Build → Storage → Começar** e siga o
-assistente (pode manter as opções padrão). Depois disso, publique as regras:
+### 1. Configurar o Cloudinary
 
-```bash
-firebase deploy --only storage
-```
-
-(o arquivo `storage.rules`, já incluso, deixa qualquer pessoa com o link
-enviar/baixar arquivos de boleto — mesmo padrão do Firestore — com limite de
-5MB por arquivo.)
-
-### 2. Ativar o plano Blaze e guardar sua chave da Anthropic
-
-A leitura automática do boleto por IA roda numa Cloud Function, que precisa
-do plano **Blaze** (pay-as-you-go — tem cota gratuita generosa, dificilmente
-vai gerar cobrança com o volume de um time pequeno):
-
-1. No console do Firebase, vá em **⚙️ → Uso e faturamento → Alterar plano** e
-   ative o Blaze.
-2. Tenha em mãos uma chave de API da Anthropic (console.anthropic.com →
-   API Keys).
-3. No terminal, dentro da pasta do projeto:
-   ```bash
-   firebase functions:secrets:set ANTHROPIC_API_KEY
+1. Abra o seu painel do Cloudinary → **Settings → Upload → Upload presets**.
+2. Confirme (ou crie) um preset do tipo **Unsigned** — é ele que permite o
+   navegador enviar arquivos direto, sem expor nenhuma chave secreta. Sugestão
+   de limites no preset: formatos `pdf,jpg,jpeg,png`, tamanho máximo 5MB.
+3. Anote o **Cloud name** (aparece no topo do painel) e o **nome do preset**.
+4. Abra `public/boletos.html` e edite estas duas linhas com os valores
+   reais:
+   ```js
+   const CLOUDINARY_CLOUD_NAME = "SEU_CLOUD_NAME";
+   const CLOUDINARY_UPLOAD_PRESET = "SEU_UPLOAD_PRESET";
    ```
-   Cole a chave quando for solicitado. Ela fica guardada só no Firebase, nunca
-   no código nem neste repositório.
+   Cloud name e nome do preset **não são segredos** — o próprio Cloudinary
+   espera que fiquem visíveis no código do navegador; é assim que o upload
+   não-assinado funciona.
 
-### 3. Publicar a função e o site
+### 2. Guardar sua chave da Anthropic no Netlify
+
+A extração automática por IA roda na Netlify Function, que lê a chave de uma
+variável de ambiente (nunca fica no código nem neste repositório):
+
+1. No painel do Netlify: **Site configuration → Environment variables → Add a variable**.
+2. Nome: `ANTHROPIC_API_KEY`. Valor: sua chave (console.anthropic.com → API Keys).
+3. Salve. Não precisa refazer o build ainda — o próximo deploy já pega a variável.
+
+### 3. Publicar
+
+Se o site já está conectado ao GitHub no Netlify (deploy automático), basta
+dar merge/push nesta branch que ele publica sozinho. Se preferir manual:
 
 ```bash
-cd functions && npm install && cd ..
 npm run build
-firebase deploy --only functions,hosting,firestore:rules,storage
 ```
 
-### 4. Permitir o botão "Baixar tudo (ZIP)"
+e arraste a pasta `dist` para **https://app.netlify.com/drop**, ou use a
+Netlify CLI (`netlify deploy --prod`) se já tiver o site linkado.
 
-Esse botão baixa os arquivos direto do navegador para montar o ZIP, o que
-exige liberar CORS no bucket do Storage (feito uma vez só). Precisa do
-[Google Cloud SDK](https://cloud.google.com/sdk/docs/install) instalado
-(`gcloud`/`gsutil`):
-
-```bash
-gsutil cors set cors.json gs://agenda-f4408.firebasestorage.app
-```
-
-Sem isso, os envios, downloads individuais e o painel funcionam normalmente —
-só o ZIP em lote fica indisponível.
+As regras do Firestore (`firestore.rules`) já foram publicadas quando a
+Agenda Semanal foi configurada; não precisa mexer nelas de novo.
 
 ### Sobre a senha do painel do gestor
 
@@ -173,6 +167,19 @@ para proteger dados sensíveis. Para trocar, edite a constante
 
 ### Se a extração por IA não estiver configurada
 
-Sem os passos 1–2, o envio de boletos continua funcionando normalmente — só
-que todo boleto entra marcado como "revisar" no painel, para o gestor
-preencher valor e vencimento manualmente.
+Sem o passo 2, o envio de boletos continua funcionando normalmente — só que
+todo boleto entra marcado como "revisar" no painel, para o gestor preencher
+valor e vencimento manualmente.
+
+### Testar localmente com as Netlify Functions
+
+`npm run dev` (Vite) não executa a function. Para testar tudo junto, use a
+Netlify CLI:
+
+```bash
+npm install -g netlify-cli
+netlify dev
+```
+
+Ela sobe o site e a function juntos, lendo as variáveis de ambiente que você
+configurar num arquivo `.env` local (não commitado) ou via `netlify link`.

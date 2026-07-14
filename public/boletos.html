@@ -253,17 +253,13 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
 import {
-  getFirestore, collection, doc, setDoc, getDocs, query, where
+  getFirestore, collection, addDoc, doc, setDoc, getDocs, query, where
 } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js";
-import {
-  getStorage, ref, uploadBytes, getDownloadURL
-} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-storage.js";
-import {
-  getFunctions, httpsCallable
-} from "https://www.gstatic.com/firebasejs/10.7.0/firebase-functions.js";
 
 // Mesmo projeto Firebase usado pela Agenda Semanal (src/firebase.js) — os dados
-// dos boletos ficam na coleção "boletos", separada das demais.
+// dos boletos ficam na coleção "boletos", separada das demais. Só o Firestore
+// é usado aqui (plano gratuito Spark, sem cartão de crédito); os arquivos vão
+// para o Cloudinary, não para o Firebase Storage.
 const firebaseConfig = {
   apiKey: "AIzaSyAwCWvg_Z4_Q-QF8IkXN6VBC1jxKVwfZ1c",
   authDomain: "agenda-f4408.firebaseapp.com",
@@ -275,9 +271,25 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const storage = getStorage(app);
-const functions = getFunctions(app);
-const extractBoletoFn = httpsCallable(functions, "extractBoleto");
+
+// TODO: preencha com os dados do seu preset de upload não assinado no
+// Cloudinary (Settings → Upload → Upload presets). Cloud name e nome do
+// preset não são segredos — ficam expostos no HTML por design do Cloudinary.
+const CLOUDINARY_CLOUD_NAME = "SEU_CLOUD_NAME";
+const CLOUDINARY_UPLOAD_PRESET = "SEU_UPLOAD_PRESET";
+
+async function uploadToCloudinary(file){
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+  formData.append('folder', 'boletos');
+  const resp = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if(!resp.ok) throw new Error('Falha no upload para o Cloudinary');
+  return resp.json();
+}
 
 const GATE_PASSWORD = "gestor2026";
 
@@ -435,8 +447,13 @@ function handleFile(file){
 async function extractBoletoData(dataUrl, mimeType){
   try{
     const base64 = dataUrl.split(',')[1];
-    const result = await extractBoletoFn({ base64, mimeType });
-    const data = result.data || {};
+    const resp = await fetch('/.netlify/functions/extract-boleto', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base64, mimeType }),
+    });
+    if(!resp.ok) return { valor:null, vencimento:null, ok:false };
+    const data = await resp.json();
     const valor = (typeof data.valor === 'number') ? data.valor : null;
     const vencimento = (typeof data.vencimento === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(data.vencimento)) ? data.vencimento : null;
     return { valor, vencimento, ok: !!data.ok };
@@ -530,11 +547,8 @@ async function onSubmit(e){
 
     const now = new Date();
     const protocolo = buildProtocolo(now);
-    const docRef = doc(collection(db,'boletos'));
 
-    const fileRef = ref(storage, `boletos/${docRef.id}/${selectedFile.name}`);
-    await uploadBytes(fileRef, selectedFile.file, { contentType: selectedFile.type });
-    const downloadUrl = await getDownloadURL(fileRef);
+    const upload = await uploadToCloudinary(selectedFile.file);
 
     const record = {
       nome, regional, supervisor,
@@ -544,12 +558,13 @@ async function onSubmit(e){
       dataHora: now.toISOString(),
       fileName: selectedFile.name,
       fileType: selectedFile.type,
-      downloadUrl,
+      fileUrl: upload.secure_url,
+      filePublicId: upload.public_id,
       protocolo,
       status: 'pendente'
     };
 
-    await setDoc(docRef, record);
+    const docRef = await addDoc(collection(db,'boletos'), record);
 
     showReceipt({ ...record, id: docRef.id });
     e.target.reset();
@@ -746,7 +761,7 @@ function renderGroups(){
         <td>${escapeHtml(m.supervisor)}</td>
         <td class="mono-date">${vencFmt || '<span class="revisar-badge">revisar</span>'}</td>
         <td class="valor-cell">${valorFmt || '<span class="revisar-badge">revisar</span>'}${divergente ? '<span class="divergente-badge">divergente</span>' : ''}</td>
-        <td><a href="${m.downloadUrl}" class="dl-link" target="_blank" rel="noopener">Baixar</a></td>
+        <td><a href="${m.fileUrl}" class="dl-link" target="_blank" rel="noopener">Baixar</a></td>
       </tr>`;
     });
 
@@ -852,8 +867,8 @@ async function exportZip(){
     zip.file('planilha_boletos.csv', '﻿' + lines.join('\n'));
 
     for(const m of rows){
-      if(!m.downloadUrl) continue;
-      const resp = await fetch(m.downloadUrl);
+      if(!m.fileUrl) continue;
+      const resp = await fetch(m.fileUrl);
       if(!resp.ok) continue;
       const arrayBuffer = await resp.arrayBuffer();
       const safeName = m.nome.replace(/[^\w\séÉáÁãÃõÕêÊíÍóÓúÚçÇ-]/g,'').trim();
@@ -868,7 +883,7 @@ async function exportZip(){
     URL.revokeObjectURL(url);
   } catch(err){
     console.error(err);
-    alert('Não foi possível gerar o ZIP agora. Tente novamente. Se o erro persistir, o bucket de Storage pode precisar de configuração de CORS (veja o README).');
+    alert('Não foi possível gerar o ZIP agora. Tente novamente.');
   } finally {
     btn.disabled = false; btn.textContent = originalText;
   }
