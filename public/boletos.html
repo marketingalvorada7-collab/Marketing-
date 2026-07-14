@@ -272,11 +272,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// TODO: preencha com os dados do seu preset de upload não assinado no
-// Cloudinary (Settings → Upload → Upload presets). Cloud name e nome do
-// preset não são segredos — ficam expostos no HTML por design do Cloudinary.
-const CLOUDINARY_CLOUD_NAME = "SEU_CLOUD_NAME";
-const CLOUDINARY_UPLOAD_PRESET = "SEU_UPLOAD_PRESET";
+const CLOUDINARY_CLOUD_NAME = "unctj6rm";
+const CLOUDINARY_UPLOAD_PRESET = "boletos_unsigned";
 
 async function uploadToCloudinary(file){
   const formData = new FormData();
