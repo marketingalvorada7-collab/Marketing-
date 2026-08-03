@@ -61,6 +61,7 @@ const PEOPLE = [
   { nome: "Camilla", cor: "#ab47bc" },
   { nome: "Vinicius", cor: "#26a69a" },
   { nome: "Marcos", cor: "#8d6e63" },
+  { nome: "Pedro Davi", cor: "#fb8c00" },
 ];
 const PEOPLE_MAP = Object.fromEntries(PEOPLE.map((p) => [p.nome, p.cor]));
 
